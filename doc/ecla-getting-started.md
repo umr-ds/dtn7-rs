@@ -19,6 +19,7 @@ beacon-period = true
 generate-status-reports = false
 parallel-bundle-processing = false
 webport = 3000
+unixsocket = "/tmp/dtnd.socket"
 workdir = "/tmp/dtn7"
 db = "mem"
 

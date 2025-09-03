@@ -29,6 +29,10 @@ parallel-bundle-processing = false
 # - a WebSocket interface for the dtn7 daemon
 webport = 3000
 
+# The Unix socket path for the daemon
+# This provides a very performant interface for communication with the daemon
+unixsocket = "/tmp/dtnd.socket"
+
 # the working directory in which files can be stored
 workdir = "/tmp/dtn7"
 
