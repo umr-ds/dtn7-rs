@@ -18,6 +18,7 @@ generate-status-reports = false
 parallel-bundle-processing = false
 routing = "epidemic"
 webport = 3000
+unixsocket = "/tmp/dtnd.socket"
 workdir = "/tmp/dtn7"
 db = "mem"
 

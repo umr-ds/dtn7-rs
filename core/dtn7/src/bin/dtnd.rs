@@ -8,6 +8,7 @@ use dtn7::dtnd::daemon::*;
 use log::info;
 use std::collections::HashMap;
 use std::panic;
+use std::path::PathBuf;
 use std::{convert::TryInto, process};
 
 #[tokio::main]
@@ -138,6 +139,14 @@ async fn main() -> Result<(), std::io::Error> {
                 .value_name("PORT")
                 .help("Sets web interface port (default = 3000)")
                 .value_parser(value_parser!(u16))
+                .action(ArgAction::Set),
+        )
+        .arg(
+            Arg::new("unixsocket")
+                .long("unix-socket")
+                .value_name("SOCKET")
+                .help("Sets the Unix socket path (default = /tmp/dtnd.socket)")
+                .value_parser(value_parser!(PathBuf))
                 .action(ArgAction::Set),
         )
         .arg(
@@ -360,6 +369,9 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
     }
     if let Some(i) = matches.get_one::<u16>("webport") {
         cfg.webport = *i;
+    }
+    if let Some(i) = matches.get_one::<PathBuf>("unixsocket") {
+        cfg.unix_socket_path = i.clone();
     }
 
     if let Some(i) = matches.get_one::<String>("janitor") {
