@@ -49,6 +49,7 @@ use std::net::SocketAddr;
 use std::time::Instant;
 use tinytemplate::TinyTemplate;
 use tokio::net::TcpListener;
+use tokio_util::sync::CancellationToken;
 use tower_http::cors::Any;
 use tower_http::cors::CorsLayer;
 /*
@@ -754,7 +755,7 @@ async fn download_hex(
     }
 }
 
-pub async fn spawn_httpd() -> Result<()> {
+pub async fn serve_httpd(shutdown: CancellationToken) -> Result<()> {
     let cors = CorsLayer::new()
         // allow `GET` and `POST` when accessing the resource
         .allow_methods([http::Method::GET, http::Method::POST, http::Method::DELETE])
@@ -848,6 +849,9 @@ pub async fn spawn_httpd() -> Result<()> {
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
+    .with_graceful_shutdown(async move {
+        shutdown.cancelled().await;
+    })
     .await?;
     Ok(())
 }

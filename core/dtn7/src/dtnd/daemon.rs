@@ -5,11 +5,13 @@ use crate::cla::ConvergenceLayerAgent;
 use crate::cla::ecla::processing::start_ecla;
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::dtnconfig::DtnConfig;
+use crate::dtnd::unix;
 use crate::ipnd::neighbour_discovery;
 use crate::{CLAS, CONFIG, DTNCORE, STORE};
 use crate::{STATS, cla_add, peers_add};
 use bp7::EndpointID;
 use log::{error, info, warn};
+use tokio_util::sync::CancellationToken;
 
 /*
 use crate::core::core::DtnCore;
@@ -98,6 +100,10 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
     );
 
     info!("Web Port: {}", CONFIG.lock().webport);
+    info!(
+        "Unix Socket Path: {}",
+        CONFIG.lock().unix_socket_path.display()
+    );
     info!("Discovery Port: {}", CONFIG.lock().discovery_listen_port);
 
     info!("IPv4: {}", CONFIG.lock().v4);
@@ -175,6 +181,36 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
         start_ecla(ecla_port).await;
     }
 
-    httpd::spawn_httpd().await?;
+    let cancel = CancellationToken::new();
+    let uds_cancel = cancel.child_token();
+    let http_cancel = cancel.child_token();
+
+    let uds_agent = tokio::spawn(async { unix::serve_unix_agent(uds_cancel).await });
+
+    let http_agent = tokio::spawn(async { httpd::serve_httpd(http_cancel).await });
+
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {
+            info!("signal: ctrl-c");
+        }
+        res = &mut { uds_agent } => {
+            if let Err(e) = res {
+                error!("Unix Domain Socket Agent task panicked: {e:?}");
+            } else if let Err(e) = res.unwrap() {
+                error!("Unix Domain Socket Agent task error: {e:?}");
+            }
+        }
+        res = &mut { http_agent } => {
+            if let Err(e) = res {
+                error!("HTTP Agent task panicked: {e:?}");
+            } else if let Err(e) = res.unwrap() {
+                error!("HTTP Agent task error: {e:?}");
+            }
+        }
+    }
+
+    // Tell both servers to stop and wait for them to drain
+    cancel.cancel();
+
     Ok(())
 }
