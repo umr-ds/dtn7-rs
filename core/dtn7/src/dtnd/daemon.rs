@@ -5,7 +5,7 @@ use crate::cla::ConvergenceLayerAgent;
 use crate::cla::ecla::processing::start_ecla;
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::dtnconfig::DtnConfig;
-use crate::dtnd::unix;
+use crate::dtnd::{rec, unix};
 use crate::ipnd::neighbour_discovery;
 use crate::{CLAS, CONFIG, DTNCORE, STORE};
 use crate::{STATS, cla_add, peers_add};
@@ -182,8 +182,11 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
     }
 
     let cancel = CancellationToken::new();
+    let rec_cancel = cancel.child_token();
     let uds_cancel = cancel.child_token();
     let http_cancel = cancel.child_token();
+
+    let rec_agent = tokio::spawn(async { rec::serve_rec_agent(rec_cancel).await });
 
     let uds_agent = tokio::spawn(async { unix::serve_unix_agent(uds_cancel).await });
 
@@ -192,6 +195,13 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
     tokio::select! {
         _ = tokio::signal::ctrl_c() => {
             info!("signal: ctrl-c");
+        }
+        res = &mut { rec_agent } => {
+            if let Err(e) = res {
+                error!("REC Agent task panicked: {e:?}");
+            } else if let Err(e) = res.unwrap() {
+                error!("REC Agent task error: {e:?}");
+            }
         }
         res = &mut { uds_agent } => {
             if let Err(e) = res {

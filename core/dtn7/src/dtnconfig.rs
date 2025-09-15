@@ -25,6 +25,7 @@ pub struct DtnConfig {
     pub host_eid: EndpointID,
     pub webport: u16,
     pub unix_socket_path: PathBuf,
+    pub rec_socket_path: PathBuf,
     pub announcement_interval: Duration,
     pub disable_neighbour_discovery: bool,
     pub discovery_destinations: BTreeMap<String, u32>,
@@ -145,6 +146,12 @@ impl From<PathBuf> for DtnConfig {
             .map(PathBuf::from)
             .unwrap_or_else(|_| dtncfg.unix_socket_path.clone());
         debug!("unix_socket_path: {:?}", dtncfg.unix_socket_path);
+
+        dtncfg.rec_socket_path = s
+            .get_string("recsocket")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| dtncfg.rec_socket_path.clone());
+        debug!("rec_socket_path: {:?}", dtncfg.rec_socket_path);
 
         dtncfg.discovery_listen_port = s.get_int("discovery.port").unwrap_or(3003) as u16;
         debug!("discovery-listen-port: {:?}", dtncfg.discovery_listen_port);
@@ -287,7 +294,8 @@ impl DtnConfig {
             discovery_destinations: BTreeMap::new(),
             discovery_listen_port: 3003,
             webport: 3000,
-            unix_socket_path: PathBuf::from("/tmp/dtnd.socket"),
+            unix_socket_path: PathBuf::from("/tmp/dtnd_unix.socket"),
+            rec_socket_path: PathBuf::from("/tmp/dtnd_rec.socket"),
             janitor_interval: "10s".parse::<humantime::Duration>().unwrap().into(),
             endpoints: Vec::new(),
             clas: Vec::new(),
@@ -316,6 +324,7 @@ impl DtnConfig {
         self.host_eid = cfg.host_eid;
         self.webport = cfg.webport;
         self.unix_socket_path = cfg.unix_socket_path;
+        self.rec_socket_path = cfg.rec_socket_path;
         self.announcement_interval = cfg.announcement_interval;
         self.disable_neighbour_discovery = cfg.disable_neighbour_discovery;
         self.discovery_destinations = cfg.discovery_destinations;
