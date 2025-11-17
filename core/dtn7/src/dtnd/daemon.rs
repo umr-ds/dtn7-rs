@@ -10,6 +10,7 @@ use crate::ipnd::neighbour_discovery;
 use crate::{CLAS, CONFIG, DTNCORE, STORE};
 use crate::{STATS, cla_add, peers_add};
 use bp7::EndpointID;
+use futures::StreamExt;
 use log::{error, info, warn};
 use tokio_util::sync::CancellationToken;
 
@@ -99,11 +100,16 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
         humantime::format_duration(CONFIG.lock().peer_timeout)
     );
 
-    info!("Web Port: {}", CONFIG.lock().webport);
-    info!(
-        "Unix Socket Path: {}",
-        CONFIG.lock().unix_socket_path.display()
-    );
+    if let Some(webport) = CONFIG.lock().webport {
+        info!("Web Port: {}", webport);
+    } else {
+        info!("Web Port: disabled");
+    }
+    if let Some(ref unix_socket_path) = CONFIG.lock().unix_socket_path {
+        info!("Unix Socket Path: {}", unix_socket_path.display());
+    } else {
+        info!("Unix Socket Path: disabled");
+    }
     info!("Discovery Port: {}", CONFIG.lock().discovery_listen_port);
 
     info!("IPv4: {}", CONFIG.lock().v4);
@@ -182,29 +188,48 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
     }
 
     let cancel = CancellationToken::new();
-    let uds_cancel = cancel.child_token();
-    let http_cancel = cancel.child_token();
 
-    let uds_agent = tokio::spawn(async { unix::serve_unix_agent(uds_cancel).await });
+    let uds_enabled = CONFIG.lock().unix_socket_path.is_some();
+    let http_enabled = CONFIG.lock().webport.is_some();
 
-    let http_agent = tokio::spawn(async { httpd::serve_httpd(http_cancel).await });
+    let mut agents: Vec<(&'static str, tokio::task::JoinHandle<anyhow::Result<()>>)> = Vec::new();
 
-    tokio::select! {
-        _ = tokio::signal::ctrl_c() => {
-            info!("signal: ctrl-c");
-        }
-        res = &mut { uds_agent } => {
-            if let Err(e) = res {
-                error!("Unix Domain Socket Agent task panicked: {e:?}");
-            } else if let Err(e) = res.unwrap() {
-                error!("Unix Domain Socket Agent task error: {e:?}");
+    if uds_enabled {
+        let uds_cancel = cancel.child_token();
+        agents.push((
+            "Unix Domain Socket Agent",
+            tokio::spawn(async move { unix::serve_unix_agent(uds_cancel).await }),
+        ));
+    }
+
+    if http_enabled {
+        let http_cancel = cancel.child_token();
+        agents.push((
+            "HTTP Agent",
+            tokio::spawn(async move { httpd::serve_httpd(http_cancel).await }),
+        ));
+    }
+
+    if agents.is_empty() {
+        warn!("No agents (Unix Domain Socket, HTTP) enabled!");
+        tokio::signal::ctrl_c().await.ok();
+        info!("signal: ctrl-c");
+    } else {
+        let mut agent_futures: futures::stream::FuturesUnordered<_> = agents
+            .into_iter()
+            .map(|(name, handle)| async move { (name, handle.await) })
+            .collect();
+
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {
+                info!("signal: ctrl-c");
             }
-        }
-        res = &mut { http_agent } => {
-            if let Err(e) = res {
-                error!("HTTP Agent task panicked: {e:?}");
-            } else if let Err(e) = res.unwrap() {
-                error!("HTTP Agent task error: {e:?}");
+            Some((name, res)) = agent_futures.next() => {
+                match res {
+                    Err(e) => error!("{name} task panicked: {e:?}"),
+                    Ok(Err(e)) => error!("{name} task error: {e:?}"),
+                    Ok(Ok(())) => {}
+                }
             }
         }
     }

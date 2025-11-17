@@ -368,10 +368,10 @@ Tag 255 takes 5 arguments and is interpreted as address. Usage: -S 255:'Samplest
         cfg.discovery_listen_port = *i;
     }
     if let Some(i) = matches.get_one::<u16>("webport") {
-        cfg.webport = *i;
+        cfg.webport = Some(*i);
     }
     if let Some(i) = matches.get_one::<PathBuf>("unixsocket") {
-        cfg.unix_socket_path = i.clone();
+        cfg.unix_socket_path = Some(i.clone());
     }
 
     if let Some(i) = matches.get_one::<String>("janitor") {

@@ -48,3 +48,42 @@ fn config_test() {
         println!("CLA: {:?}", tab["id"].clone().into_string().unwrap());
     }
 }
+
+#[test]
+fn config_optional_agents() {
+    use dtn7::DtnConfig;
+    use std::path::PathBuf;
+
+    // Test config with both agents enabled (from example)
+    let cfg = DtnConfig::from(PathBuf::from("../../examples/dtn7.toml.example"));
+    assert!(
+        cfg.webport.is_some(),
+        "webport should be Some when specified in config"
+    );
+    assert!(
+        cfg.unix_socket_path.is_some(),
+        "unix_socket_path should be Some when specified in config"
+    );
+
+    // Test default config has both agents enabled
+    let cfg_default = DtnConfig::new();
+    assert!(
+        cfg_default.webport.is_some(),
+        "default config should have webport enabled"
+    );
+    assert!(
+        cfg_default.unix_socket_path.is_some(),
+        "default config should have unix_socket_path enabled"
+    );
+
+    // Test config with agents omitted
+    let cfg_no_agents = DtnConfig::from(PathBuf::from("tests/test_no_agents.toml"));
+    assert!(
+        cfg_no_agents.webport.is_none(),
+        "webport should be None when omitted from config"
+    );
+    assert!(
+        cfg_no_agents.unix_socket_path.is_none(),
+        "unix_socket_path should be None when omitted from config"
+    );
+}

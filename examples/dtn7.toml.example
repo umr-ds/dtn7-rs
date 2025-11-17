@@ -27,10 +27,13 @@ parallel-bundle-processing = false
 # - a simple web interface with status information
 # - a REST interface for the dtn7 daemon
 # - a WebSocket interface for the dtn7 daemon
+# Omit this line to disable the HTTP Agent
+# Note: The port is also used by the HTTP Convergence Layer
 webport = 3000
 
 # The Unix socket path for the daemon
 # This provides a very performant interface for communication with the daemon
+# Omit this line to disable the Unix Domain Socket Agent
 unixsocket = "/tmp/dtnd.socket"
 
 # the working directory in which files can be stored

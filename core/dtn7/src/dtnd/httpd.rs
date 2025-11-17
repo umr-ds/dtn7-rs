@@ -831,7 +831,10 @@ pub async fn serve_httpd(shutdown: CancellationToken) -> Result<()> {
         .route("/status/info", get(status_info))
         .layer(cors.clone());
 
-    let port = CONFIG.lock().webport;
+    let port = CONFIG
+        .lock()
+        .webport
+        .expect("HTTP Agent started without webport configured");
 
     let v4 = CONFIG.lock().v4;
     let v6 = CONFIG.lock().v6;

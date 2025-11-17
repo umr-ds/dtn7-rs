@@ -1,0 +1,16 @@
+# Test config with agents disabled (omitted)
+nodeid = "node1"
+debug = false
+workdir = "/tmp/dtn7"
+db = "mem"
+
+[routing]
+strategy = "epidemic"
+
+[core]
+janitor = "10s"
+
+[discovery]
+interval = "2s"
+peer-timeout = "20s"
+port = 3003

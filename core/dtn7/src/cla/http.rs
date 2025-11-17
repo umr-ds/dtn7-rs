@@ -109,7 +109,10 @@ impl HttpConvergenceLayer {
         });
 
         HttpConvergenceLayer {
-            local_port: CONFIG.lock().webport,
+            local_port: CONFIG
+                .lock()
+                .webport
+                .expect("HTTP Convergence Layer started without webport configured"),
             tx,
         }
     }

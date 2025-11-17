@@ -30,7 +30,12 @@ impl Drop for SockGuard {
 }
 
 pub async fn serve_unix_agent(shutdown: CancellationToken) -> Result<()> {
-    let sock_guard = SockGuard(CONFIG.lock().unix_socket_path.to_path_buf());
+    let sock_path = CONFIG
+        .lock()
+        .unix_socket_path
+        .clone()
+        .expect("Unix Domain Socket Agent started without unix_socket_path configured");
+    let sock_guard = SockGuard(sock_path);
 
     // cleanup stale socket on startup
     if sock_guard.0.exists() {

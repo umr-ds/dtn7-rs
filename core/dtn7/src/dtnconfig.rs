@@ -23,8 +23,8 @@ pub struct DtnConfig {
     pub enable_period: bool,
     pub nodeid: String,
     pub host_eid: EndpointID,
-    pub webport: u16,
-    pub unix_socket_path: PathBuf,
+    pub webport: Option<u16>,
+    pub unix_socket_path: Option<PathBuf>,
     pub announcement_interval: Duration,
     pub disable_neighbour_discovery: bool,
     pub discovery_destinations: BTreeMap<String, u32>,
@@ -135,15 +135,10 @@ impl From<PathBuf> for DtnConfig {
         dtncfg.db = s.get_string("db").unwrap_or_else(|_| "mem".into());
         debug!("db: {:?}", dtncfg.db);
 
-        dtncfg.webport = s
-            .get_int("webport")
-            .unwrap_or_else(|_| i64::from(dtncfg.webport)) as u16;
+        dtncfg.webport = s.get_int("webport").ok().map(|p| p as u16);
         debug!("webport: {:?}", dtncfg.webport);
 
-        dtncfg.unix_socket_path = s
-            .get_string("unixsocket")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| dtncfg.unix_socket_path.clone());
+        dtncfg.unix_socket_path = s.get_string("unixsocket").ok().map(PathBuf::from);
         debug!("unix_socket_path: {:?}", dtncfg.unix_socket_path);
 
         dtncfg.discovery_listen_port = s.get_int("discovery.port").unwrap_or(3003) as u16;
@@ -286,8 +281,8 @@ impl DtnConfig {
             disable_neighbour_discovery: false,
             discovery_destinations: BTreeMap::new(),
             discovery_listen_port: 3003,
-            webport: 3000,
-            unix_socket_path: PathBuf::from("/tmp/dtnd.socket"),
+            webport: Some(3000),
+            unix_socket_path: Some(PathBuf::from("/tmp/dtnd.socket")),
             janitor_interval: "10s".parse::<humantime::Duration>().unwrap().into(),
             endpoints: Vec::new(),
             clas: Vec::new(),
