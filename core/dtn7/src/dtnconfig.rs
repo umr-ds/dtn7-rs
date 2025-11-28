@@ -25,6 +25,7 @@ pub struct DtnConfig {
     pub host_eid: EndpointID,
     pub webport: Option<u16>,
     pub unix_socket_path: Option<PathBuf>,
+    pub rec_socket_path: Option<PathBuf>,
     pub announcement_interval: Duration,
     pub disable_neighbour_discovery: bool,
     pub discovery_destinations: BTreeMap<String, u32>,
@@ -140,6 +141,12 @@ impl From<PathBuf> for DtnConfig {
 
         dtncfg.unix_socket_path = s.get_string("unixsocket").ok().map(PathBuf::from);
         debug!("unix_socket_path: {:?}", dtncfg.unix_socket_path);
+
+        dtncfg.rec_socket_path = s.get_string("recsocket").ok().map(PathBuf::from);
+        debug!("rec_socket_path: {:?}", dtncfg.rec_socket_path);
+
+        dtncfg.rec_socket_path = s.get_string("recsocket").ok().map(PathBuf::from);
+        debug!("rec_socket_path: {:?}", dtncfg.rec_socket_path);
 
         dtncfg.discovery_listen_port = s.get_int("discovery.port").unwrap_or(3003) as u16;
         debug!("discovery-listen-port: {:?}", dtncfg.discovery_listen_port);
@@ -282,7 +289,8 @@ impl DtnConfig {
             discovery_destinations: BTreeMap::new(),
             discovery_listen_port: 3003,
             webport: Some(3000),
-            unix_socket_path: Some(PathBuf::from("/tmp/dtnd.socket")),
+            unix_socket_path: Some(PathBuf::from("/tmp/dtnd_unix.socket")),
+            rec_socket_path: Some(PathBuf::from("/tmp/dtnd_rec.socket")),
             janitor_interval: "10s".parse::<humantime::Duration>().unwrap().into(),
             endpoints: Vec::new(),
             clas: Vec::new(),
@@ -311,6 +319,7 @@ impl DtnConfig {
         self.host_eid = cfg.host_eid;
         self.webport = cfg.webport;
         self.unix_socket_path = cfg.unix_socket_path;
+        self.rec_socket_path = cfg.rec_socket_path;
         self.announcement_interval = cfg.announcement_interval;
         self.disable_neighbour_discovery = cfg.disable_neighbour_discovery;
         self.discovery_destinations = cfg.discovery_destinations;

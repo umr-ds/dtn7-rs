@@ -5,7 +5,7 @@ use crate::cla::ConvergenceLayerAgent;
 use crate::cla::ecla::processing::start_ecla;
 use crate::core::application_agent::SimpleApplicationAgent;
 use crate::dtnconfig::DtnConfig;
-use crate::dtnd::unix;
+use crate::dtnd::{rec, unix};
 use crate::ipnd::neighbour_discovery;
 use crate::{CLAS, CONFIG, DTNCORE, STORE};
 use crate::{STATS, cla_add, peers_add};
@@ -190,6 +190,7 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
     let cancel = CancellationToken::new();
 
     let uds_enabled = CONFIG.lock().unix_socket_path.is_some();
+    let rec_enabled = CONFIG.lock().rec_socket_path.is_some();
     let http_enabled = CONFIG.lock().webport.is_some();
 
     let mut agents: Vec<(&'static str, tokio::task::JoinHandle<anyhow::Result<()>>)> = Vec::new();
@@ -202,6 +203,14 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
         ));
     }
 
+    if rec_enabled {
+        let rec_cancel = cancel.child_token();
+        agents.push((
+            "REC Agent",
+            tokio::spawn(async move { rec::serve_rec_agent(rec_cancel).await }),
+        ));
+    }
+
     if http_enabled {
         let http_cancel = cancel.child_token();
         agents.push((
@@ -211,7 +220,7 @@ pub async fn start_dtnd(cfg: DtnConfig) -> anyhow::Result<()> {
     }
 
     if agents.is_empty() {
-        warn!("No agents (Unix Domain Socket, HTTP) enabled!");
+        warn!("No agents (Unix Domain Socket, REC, HTTP) enabled!");
         tokio::signal::ctrl_c().await.ok();
         info!("signal: ctrl-c");
     } else {
